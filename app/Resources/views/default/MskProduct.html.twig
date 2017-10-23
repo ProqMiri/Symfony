@@ -1,0 +1,145 @@
+{% extends 'base.html.twig' %}
+
+{% block stylesheets %}
+    <style>
+        tbody tr{
+            cursor: pointer;
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+    <div style="width: 600px; padding: 50px;" align="center">
+        <table class="table table-hover table-advanced table-bordered">
+            <thead>
+                <tr>
+                    <th style="width: 30px !important;">#</th>
+                    <th style="">Ad</th>
+                    <th style="width: 50px !important;"><a class="btn btn-success btn-xs" onclick="addNewProduct();"><i class="fa fa-plus"></i> Əlavə et</a></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in products %}
+                    <tr data-id="{{ product.id }}">
+                        <td>1</td>
+                        <td>{{ product.name }}</td>
+                        <td>
+                            <a class="btn btn-primary btn-xs" onclick="editProduct($(this));"><i class="fa fa-pencil"></i></a>
+                            <a class="btn btn-danger btn-xs" onclick="deleteProduct($(this));"><i class="fa fa-trash"></i></a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Modal -->
+    <div id="ProductModal" class="modal fade" role="dialog" data-id="0">
+        <div class="modal-dialog">
+
+            <!-- Modal content-->
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    <h4 class="modal-title">Yeni Məhsul Əlavə Et</h4>
+                </div>
+                <div class="modal-body">
+                    <input class="form-control" name="productName" placeholder="Məhsulun adı">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default btn-success" onclick="SaveProduct();">Əlavə et</button>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Bağla</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    
+{% endblock %}
+
+{% block javascripts %}
+    <script>
+        function addNewProduct()
+        {
+            $('#ProductModal').find('h4.modal-title').text('Yeni Məhsul Əlavə Et.');
+            $('#ProductModal').attr('data-id', 0);
+            $('#ProductModal').find('input[name="productName"]').val('');
+            $('#ProductModal').modal('show');
+        }
+        function editProduct(element)
+        {
+            var id = element.parents('tr').attr('data-id'),
+                name = element.parents('tr').find('td:eq(1)').text();
+            $('#ProductModal').find('h4.modal-title').text('Məhsula Düzəliş Et.');
+            $('#ProductModal').attr('data-id', id);
+            $('#ProductModal').find('input[name="productName"]').val(name);
+            $('#ProductModal').modal('show');
+        }
+        function SaveProduct()
+        {
+            var id = $('#ProductModal').attr('data-id'),
+                productName = $('#ProductModal').find('input[name="productName"]').val();
+            $.post('/msk/product/operation/', {'id': id, 'name': productName}, function(data){
+                if(data.status == "success")
+                {
+                    if(id == 0)
+                    {
+                        var trCount = $('table>tbody').find('tr').length;
+                        $('table>tbody').append('<tr data-id="'+data.id+'"> <td>'+(trCount)+'</td> <td>'+productName+'</td> <td> <a class="btn btn-primary btn-xs" onclick="editProduct($(this));"><i class="fa fa-pencil"> </i> </a> <a class="btn btn-danger btn-xs" onclick="deleteProduct($(this));"> <i class="fa fa-trash"> </i> </a> </td> </tr>');
+                    }
+                    else
+                    {
+                        var tr = $('table>tbody').find('tr[data-id="'+data.id+'"]');
+                        tr.find('td:eq(1)').text(productName);
+                    }
+                    orderTable();
+                    $('#ProductModal').modal('hide');
+                }
+                else if(data.status == "error")
+                {
+                    $.alert(data.errorMsg);
+                }
+                else
+                {
+                    $.alert('Xəta!');
+                }
+            });
+        }
+        function deleteProduct(element)
+        {
+            var id = element.parents('tr').attr('data-id');
+            $.confirm({
+                title: 'Sorğu',
+                content: 'Silmək istədiyinizdən əminsiniz?',
+                buttons: {
+                    Bəli: function () {
+                        $.post('/msk/product/delete/', {'id': id}, function(data){
+                            if(data.status == "success")
+                            {
+                                element.parents('tr').remove();
+                                orderTable();
+                            }
+                            else if(data.status == "error")
+                            {
+                                $.alert(data.errorMsg);
+                            }
+                            else
+                            {
+                                $.alert('Xəta!');
+                            }
+                        });
+                    },
+                    Xeyr: function () { }
+                }
+            });
+        }
+        function orderTable()
+        {
+            var i = 0;
+            $('table.table>tbody').find('tr').each(function(){
+                $(this).find('td:eq(0)').text(++i);
+            });
+        }
+        orderTable();
+    </script>
+{% endblock %}

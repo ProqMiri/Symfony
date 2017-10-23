@@ -1,0 +1,161 @@
+{% extends 'base.html.twig' %}
+
+{% block stylesheets %}
+    <style>
+        tbody tr{
+            cursor: pointer;
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+    <div style="width: 600px; padding: 50px;" align="center">
+        <table class="table table-hover table-advanced table-bordered">
+            <thead>
+            <tr>
+                <th style="width: 30px !important;">#</th>
+                <th style="">Ad</th>
+                <th style="">Soyad</th>
+                <th style="">Telefon</th>
+                <th style="width: 50px !important;"><a class="btn btn-success btn-xs" onclick="addNewCustomer();"><i class="fa fa-plus"></i> Əlavə et</a></th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for Customer in Customers %}
+                <tr data-id="{{ Customer.id }}">
+                    <td>1</td>
+                    <td>{{ Customer.name }}</td>
+                    <td>{{ Customer.surname }}</td>
+                    <td>{{ Customer.phone }}</td>
+                    <td>
+                        <a class="btn btn-primary btn-xs" onclick="editCustomer($(this));"><i class="fa fa-pencil"></i></a>
+                        <a class="btn btn-danger btn-xs" onclick="deleteCustomer($(this));"><i class="fa fa-trash"></i></a>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Modal -->
+    <div id="CustomerModal" class="modal fade" role="dialog" data-id="0">
+        <div class="modal-dialog">
+
+            <!-- Modal content-->
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    <h4 class="modal-title">Yeni Müştəri Əlavə Et</h4>
+                </div>
+                <div class="modal-body">
+                    <input class="form-control" name="CustomerName" placeholder="Müştərinin adı"><br>
+                    <input class="form-control" name="CustomerSurname" placeholder="Müştərinin soyadı"><br>
+                    <input class="form-control" name="CustomerPhone" placeholder="Müştərinin telefon nömrəsi">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default btn-success" onclick="SaveCustomer();">Əlavə et</button>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Bağla</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+{% endblock %}
+
+{% block javascripts %}
+    <script>
+        function addNewCustomer()
+        {
+            $('#CustomerModal').find('h4.modal-title').text('Yeni Müştəri Əlavə Et.');
+            $('#CustomerModal').attr('data-id', 0);
+            $('#CustomerModal').find('input[name="CustomerName"]').val('');
+            $('#CustomerModal').find('input[name="CustomerSurname"]').val('');
+            $('#CustomerModal').find('input[name="CustomerPhone"]').val('');
+            $('#CustomerModal').modal('show');
+        }
+        function editCustomer(element)
+        {
+            var id = element.parents('tr').attr('data-id'),
+                name = element.parents('tr').find('td:eq(1)').text(),
+                surname = element.parents('tr').find('td:eq(2)').text(),
+                phone = element.parents('tr').find('td:eq(3)').text();
+            $('#CustomerModal').find('h4.modal-title').text('Müştəri Məlumatlarına Düzəliş Et.');
+            $('#CustomerModal').attr('data-id', id);
+            $('#CustomerModal').find('input[name="CustomerName"]').val(name);
+            $('#CustomerModal').find('input[name="CustomerSurname"]').val(surname);
+            $('#CustomerModal').find('input[name="CustomerPhone"]').val(phone);
+            $('#CustomerModal').modal('show');
+        }
+        function SaveCustomer()
+        {
+            var id = $('#CustomerModal').attr('data-id'),
+                CustomerName = $('#CustomerModal').find('input[name="CustomerName"]').val(),
+                CustomerSurname = $('#CustomerModal').find('input[name="CustomerSurname"]').val(),
+                CustomerPhone = $('#CustomerModal').find('input[name="CustomerPhone"]').val();
+            $.post('/msk/Customer/operation/', {'id': id, 'name': CustomerName, 'surname': CustomerSurname, 'phone': CustomerPhone}, function(data){
+                if(data.status == "success")
+                {
+                    if(id == 0)
+                    {
+                        var trCount = $('table>tbody').find('tr').length;
+                        $('table>tbody').append('<tr data-id="'+data.id+'"> <td>'+(trCount)+'</td> <td>'+CustomerName+'</td> <td>'+CustomerSurname+'</td> <td>'+CustomerPhone+'</td>  <td> <a class="btn btn-primary btn-xs" onclick="editCustomer($(this));"><i class="fa fa-pencil"> </i> </a> <a class="btn btn-danger btn-xs" onclick="deleteCustomer($(this));"> <i class="fa fa-trash"> </i> </a> </td> </tr>');
+                    }
+                    else
+                    {
+                        var tr = $('table>tbody').find('tr[data-id="'+data.id+'"]');
+                        tr.find('td:eq(1)').text(CustomerName);
+                        tr.find('td:eq(2)').text(CustomerSurname);
+                        tr.find('td:eq(3)').text(CustomerPhone);
+                    }
+                    orderTable();
+                    $('#CustomerModal').modal('hide');
+                }
+                else if(data.status == "error")
+                {
+                    $.alert(data.errorMsg);
+                }
+                else
+                {
+                    $.alert('Xəta!');
+                }
+            });
+        }
+        function deleteCustomer(element)
+        {
+            var id = element.parents('tr').attr('data-id');
+            $.confirm({
+                title: 'Sorğu',
+                content: 'Silmək istədiyinizdən əminsiniz?',
+                buttons: {
+                    Bəli: function () {
+                        $.post('/msk/Customer/delete/', {'id': id}, function(data){
+                            if(data.status == "success")
+                            {
+                                element.parents('tr').remove();
+                                orderTable();
+                            }
+                            else if(data.status == "error")
+                            {
+                                $.alert(data.errorMsg);
+                            }
+                            else
+                            {
+                                $.alert('Xəta!');
+                            }
+                        });
+                    },
+                    Xeyr: function () { }
+                }
+            });
+        }
+        function orderTable()
+        {
+            var i = 0;
+            $('table.table>tbody').find('tr').each(function(){
+                $(this).find('td:eq(0)').text(++i);
+            });
+        }
+        orderTable();
+    </script>
+{% endblock %}
